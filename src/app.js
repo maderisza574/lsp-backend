@@ -12,7 +12,7 @@ const customerRoutes = require("./routes/customers");
 const assignmentRoutes = require("./routes/assignments");
 const submissionRoutes = require("./routes/submissions");
 const approvalRoutes = require("./routes/approvals");
-const usersRoutes = require("./routes/users"); // ✅ tambahin ini
+const usersRoutes = require("./routes/users");
 
 app.get("/", (req, res) => {
   res.send("🚀 API Running");
@@ -24,9 +24,7 @@ app.use("/customers", customerRoutes);
 app.use("/assignments", assignmentRoutes);
 app.use("/submissions", submissionRoutes);
 app.use("/approvals", approvalRoutes);
-app.use("/users", usersRoutes); // ✅ tambahin ini
+app.use("/users", usersRoutes);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-});
+// ❌ Jangan ada app.listen di sini
+module.exports = app;
