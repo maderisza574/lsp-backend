@@ -33,6 +33,7 @@ exports.create = async (req, res) => {
       batas_akhir_pengajuan, nama_bank, no_cif,
     };
 
+    // Default status dan step diatur di model (status: 'pending', step: 0)
     const { data, error } = await createAssignment(assignmentData);
     if (error) return response(res, 500, error.message);
 
@@ -59,15 +60,21 @@ exports.updateDraft = async (req, res) => {
       return response(res, 403, "You are not the assigned agent for this assignment.");
     }
 
+    // Agent bisa update data termasuk 'step', tapi status dijaga agar tetap 'pending' 
+    // jika belum disubmit (atau tidak boleh diubah oleh agent).
     const safeUpdateData = { ...updateData };
-    if (safeUpdateData.status && safeUpdateData.status !== "pending") {
-      delete safeUpdateData.status;
+    
+    // Pastikan agent tidak bisa mengubah status menjadi status final
+    if (safeUpdateData.status && ["success", "rejected"].includes(safeUpdateData.status)) {
+        delete safeUpdateData.status;
+    }
+    
+    // Status dipertahankan 'pending' jika belum final
+    if (assignment.status !== 'success' && assignment.status !== 'rejected') {
+        safeUpdateData.status = "pending";
     }
 
-    const { data, error } = await updateAssignment(id, {
-      ...safeUpdateData,
-      status: "pending",
-    });
+    const { data, error } = await updateAssignment(id, safeUpdateData);
     if (error) return response(res, 500, error.message);
 
     return response(res, 200, "Assignment draft saved successfully", data);
@@ -76,41 +83,16 @@ exports.updateDraft = async (req, res) => {
   }
 };
 
-// --- SUBMIT (agent only) ---
-exports.submit = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const finalData = req.body;
-
-    if (req.user.role !== "agent") {
-      return response(res, 403, "Only agent can submit assignment.");
-    }
-
-    const { data: assignment } = await getAssignmentById(id);
-    if (!assignment) return response(res, 404, "Assignment not found.");
-
-    if (assignment.agent_id !== req.user.id) {
-      return response(res, 403, "You are not the assigned agent for this assignment.");
-    }
-
-    const { data, error } = await updateAssignment(id, {
-      ...finalData,
-      status: "in_progress", // disamakan dengan constraint DB
-      submitted_at: new Date(),
-    });
-    if (error) return response(res, 500, error.message);
-
-    return response(res, 200, "Assignment submitted successfully for approval", data);
-  } catch (err) {
-    return response(res, 500, err.message);
-  }
-};
+// --- SUBMIT (DIHAPUS atau DIUBAH MENJADI BAGIAN DARI updateDraft) ---
+// Jika updateDraft sudah mengirim step 4, maka secara logis sudah dianggap submit.
+// Oleh karena itu, kita akan fokus pada pengecekan step di review.
 
 // --- APPROVE / REJECT (admin or approver only) ---
 exports.review = async (req, res) => {
   try {
     const { id } = req.params;
     const { action, note } = req.body; // action: 'approve' / 'reject'
+    const MIN_STEP_FOR_REVIEW = 4; // Menentukan minimum step untuk review
 
     if (!["admin", "approver"].includes(req.user.role)) {
       return response(res, 403, "Only admin or approver can review assignment.");
@@ -123,8 +105,14 @@ exports.review = async (req, res) => {
     const { data: assignment } = await getAssignmentById(id);
     if (!assignment) return response(res, 404, "Assignment not found.");
 
-    if (assignment.status !== "in_progress") {
-      return response(res, 400, "Assignment must be in 'in_progress' status before review.");
+    // Pengecekan baru: Pastikan step sudah mencapai minimum yang ditentukan
+    if (assignment.step < MIN_STEP_FOR_REVIEW) {
+      return response(res, 400, `Assignment must be completed up to Step ${MIN_STEP_FOR_REVIEW} before review.`);
+    }
+
+    // Pengecekan status: Pastikan assignment belum di-review/final
+    if (["success", "rejected"].includes(assignment.status)) {
+        return response(res, 400, `Assignment already reviewed with status: ${assignment.status}.`);
     }
 
     const newStatus = action === "approve" ? "success" : "rejected"; // ✅ disamakan dengan constraint DB

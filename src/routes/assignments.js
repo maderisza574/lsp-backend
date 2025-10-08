@@ -9,10 +9,12 @@ router.get("/", authMiddleware, assignmentsController.list);
 router.get("/:id", authMiddleware, assignmentsController.detail);
 
 // Agent routes
+// Endpoint ini digunakan untuk menyimpan draft dan mengupdate 'step'
 router.patch("/:id/draft", authMiddleware, assignmentsController.updateDraft);
-router.post("/:id/submit", authMiddleware, assignmentsController.submit);
+// router.post("/:id/submit", authMiddleware, assignmentsController.submit); // <= DIHAPUS
 
 // Admin/Approver routes
+// Review dilakukan jika 'step' sudah memenuhi syarat (>= 4)
 router.post("/:id/review", authMiddleware, assignmentsController.review);
 
 // Delete (admin only)

@@ -4,8 +4,8 @@ const TABLE = "assignments";
 // CREATE
 async function createAssignment(data) {
   const defaultData = {
-    status: "pending",
-    step: 0,
+    status: "pending", // Status awal
+    step: 0, // Step awal
     ...data,
   };
   if (defaultData.id) delete defaultData.id;
