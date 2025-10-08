@@ -4,8 +4,8 @@ const TABLE = "assignments";
 // CREATE
 async function createAssignment(data) {
   const defaultData = {
-    status: "pending", // Status awal
-    step: 0, // Step awal
+    status: "pending", 
+    step: 0, 
     ...data,
   };
   if (defaultData.id) delete defaultData.id;
@@ -32,7 +32,8 @@ async function updateAssignment(id, updateData) {
     .single();
 }
 
-// LIST
+// LIST, DETAIL, DELETE (Sama seperti sebelumnya)
+
 async function getAssignments(filters = {}) {
   let query = supabase
     .from(TABLE)
@@ -45,12 +46,10 @@ async function getAssignments(filters = {}) {
   return await query;
 }
 
-// DETAIL
 async function getAssignmentById(id) {
   return await supabase.from(TABLE).select("*").eq("id", id).single();
 }
 
-// DELETE
 async function deleteAssignment(id) {
   return await supabase
     .from(TABLE)

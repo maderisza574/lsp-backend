@@ -20,7 +20,6 @@ exports.create = async (req, res) => {
     if (req.user.role !== "admin") {
       return response(res, 403, "Only admin can create assignment");
     }
-
     if (!agent_id || !customer_id) {
       return response(res, 400, "customer_id and agent_id are required.");
     }
@@ -33,7 +32,6 @@ exports.create = async (req, res) => {
       batas_akhir_pengajuan, nama_bank, no_cif,
     };
 
-    // Default status dan step diatur di model (status: 'pending', step: 0)
     const { data, error } = await createAssignment(assignmentData);
     if (error) return response(res, 500, error.message);
 
@@ -55,23 +53,27 @@ exports.updateDraft = async (req, res) => {
 
     const { data: assignment } = await getAssignmentById(id);
     if (!assignment) return response(res, 404, "Assignment not found.");
-
     if (assignment.agent_id !== req.user.id) {
       return response(res, 403, "You are not the assigned agent for this assignment.");
     }
-
-    // Agent bisa update data termasuk 'step', tapi status dijaga agar tetap 'pending' 
-    // jika belum disubmit (atau tidak boleh diubah oleh agent).
+    
     const safeUpdateData = { ...updateData };
     
-    // Pastikan agent tidak bisa mengubah status menjadi status final
+    // Cegah agent mengubah status menjadi status final
     if (safeUpdateData.status && ["success", "rejected"].includes(safeUpdateData.status)) {
         delete safeUpdateData.status;
     }
     
-    // Status dipertahankan 'pending' jika belum final
+    // Status dipertahankan 'pending' (jika belum final) atau disesuaikan jika agent 
+    // mengirim status 'in_progress' atau 'submitted' (opsional, tergantung alur Anda)
     if (assignment.status !== 'success' && assignment.status !== 'rejected') {
-        safeUpdateData.status = "pending";
+        // Jika agent mengirim status 'submitted' atau 'in_progress', biarkan, 
+        // jika tidak, gunakan status assignment saat ini (misalnya 'pending')
+        if (!safeUpdateData.status) {
+           safeUpdateData.status = assignment.status; 
+        }
+    } else {
+        delete safeUpdateData.status; // Tidak boleh diubah lagi jika sudah final
     }
 
     const { data, error } = await updateAssignment(id, safeUpdateData);
@@ -83,10 +85,6 @@ exports.updateDraft = async (req, res) => {
   }
 };
 
-// --- SUBMIT (DIHAPUS atau DIUBAH MENJADI BAGIAN DARI updateDraft) ---
-// Jika updateDraft sudah mengirim step 4, maka secara logis sudah dianggap submit.
-// Oleh karena itu, kita akan fokus pada pengecekan step di review.
-
 // --- APPROVE / REJECT (admin or approver only) ---
 exports.review = async (req, res) => {
   try {
@@ -97,7 +95,6 @@ exports.review = async (req, res) => {
     if (!["admin", "approver"].includes(req.user.role)) {
       return response(res, 403, "Only admin or approver can review assignment.");
     }
-
     if (!["approve", "reject"].includes(action)) {
       return response(res, 400, "Invalid action. Must be 'approve' or 'reject'.");
     }
@@ -105,17 +102,18 @@ exports.review = async (req, res) => {
     const { data: assignment } = await getAssignmentById(id);
     if (!assignment) return response(res, 404, "Assignment not found.");
 
-    // Pengecekan baru: Pastikan step sudah mencapai minimum yang ditentukan
+    // Pengecekan Step: Memastikan agent telah menyelesaikan pekerjaannya
     if (assignment.step < MIN_STEP_FOR_REVIEW) {
       return response(res, 400, `Assignment must be completed up to Step ${MIN_STEP_FOR_REVIEW} before review.`);
     }
 
-    // Pengecekan status: Pastikan assignment belum di-review/final
+    // Pengecekan Status: Memastikan assignment belum di-review/final
     if (["success", "rejected"].includes(assignment.status)) {
         return response(res, 400, `Assignment already reviewed with status: ${assignment.status}.`);
     }
 
-    const newStatus = action === "approve" ? "success" : "rejected"; // ✅ disamakan dengan constraint DB
+    // Pastikan status yang dikirim VALID di DB (success / rejected)
+    const newStatus = action === "approve" ? "success" : "rejected"; 
     const updateData = {
       status: newStatus,
       reviewed_by: req.user.id,
@@ -132,49 +130,41 @@ exports.review = async (req, res) => {
   }
 };
 
-// --- LIST ---
+// --- LIST, DETAIL, REMOVE (Sama seperti sebelumnya) ---
+
 exports.list = async (req, res) => {
   try {
     const { agent_id, status } = req.query;
     const { data, error } = await getAssignments({ agent_id, status });
-
     if (error) return response(res, 500, error.message);
-
     return response(res, 200, "Assignments fetched successfully", data);
   } catch (err) {
     return response(res, 500, err.message);
   }
 };
 
-// --- DETAIL ---
 exports.detail = async (req, res) => {
   try {
     const { id } = req.params;
     const { data, error } = await getAssignmentById(id);
-
     if (error || !data) return response(res, 404, "Assignment not found");
-
     return response(res, 200, "Assignment detail", data);
   } catch (err) {
     return response(res, 500, err.message);
   }
 };
 
-// --- DELETE (admin only) ---
 exports.remove = async (req, res) => {
   try {
     const { id } = req.params;
-
     if (req.user.role !== "admin") {
       return response(res, 403, "Only admin can delete assignment.");
     }
-
     const { data: assignment } = await getAssignmentById(id);
     if (!assignment) return response(res, 404, "Assignment not found.");
 
     const { data, error } = await deleteAssignment(id);
     if (error) return response(res, 500, error.message);
-
     return response(res, 200, "Assignment deleted successfully", data);
   } catch (err) {
     return response(res, 500, err.message);
