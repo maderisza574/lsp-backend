@@ -130,6 +130,77 @@ exports.review = async (req, res) => {
   }
 };
 
+// --- SUBMIT ASSIGNMENT (agent only) ---
+exports.submit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      step, 
+      dokumen_buku_tabungan, 
+      dokumen_surat_pernyataan, 
+      dokumen_lainnya = [] 
+    } = req.body;
+
+    // Validasi role
+    if (req.user.role !== "agent") {
+      return response(res, 403, "Only agent can submit assignment.");
+    }
+
+    // Get assignment
+    const { data: assignment, error: fetchError } = await getAssignmentById(id);
+    if (fetchError || !assignment) {
+      return response(res, 404, "Assignment not found.");
+    }
+
+    // Validasi ownership
+    if (assignment.agent_id !== req.user.id) {
+      return response(res, 403, "You are not the assigned agent for this assignment.");
+    }
+
+    // Validasi step
+    if (!step || step < 1 || step > 4) {
+      return response(res, 400, "Step must be between 1 and 4.");
+    }
+
+    // Prepare update data
+    const updateData = {
+      step: step,
+      status: step === 4 ? "submitted" : "in_progress", // Set status berdasarkan step
+      submitted_at: step === 4 ? new Date() : null // Timestamp ketika submit final
+    };
+
+    // Tambahkan dokumen jika provided
+    if (dokumen_buku_tabungan) {
+      updateData.dokumen_buku_tabungan = dokumen_buku_tabungan;
+    }
+    if (dokumen_surat_pernyataan) {
+      updateData.dokumen_surat_pernyataan = dokumen_surat_pernyataan;
+    }
+    if (dokumen_lainnya && dokumen_lainnya.length > 0) {
+      updateData.dokumen_lainnya = dokumen_lainnya;
+    }
+
+    console.log('Updating assignment with data:', updateData);
+
+    // Update assignment
+    const { data: updatedAssignment, error: updateError } = await updateAssignment(id, updateData);
+    if (updateError) {
+      console.error('Update error:', updateError);
+      return response(res, 500, updateError.message);
+    }
+
+    const message = step === 4 
+      ? "Assignment submitted successfully and ready for review" 
+      : `Assignment progress saved at step ${step}`;
+
+    return response(res, 200, message, updatedAssignment);
+
+  } catch (err) {
+    console.error('Submit error:', err);
+    return response(res, 500, err.message);
+  }
+};
+
 // --- LIST, DETAIL, REMOVE (Sama seperti sebelumnya) ---
 
 exports.list = async (req, res) => {

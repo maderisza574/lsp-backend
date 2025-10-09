@@ -10,6 +10,7 @@ router.get("/:id", authMiddleware, assignmentsController.detail);
 
 // Agent routes
 router.patch("/:id/draft", authMiddleware, assignmentsController.updateDraft);
+router.post("/:id/submit", authMiddleware, assignmentsController.submit);
 
 // Admin/Approver routes
 router.post("/:id/review", authMiddleware, assignmentsController.review);

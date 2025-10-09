@@ -59,6 +59,24 @@ async function deleteAssignment(id) {
     .single();
 }
 
+// UPDATE
+async function updateAssignment(id, updateData) {
+  const safeUpdateData = { ...updateData };
+  
+  // Fields yang tidak boleh diupdate
+  delete safeUpdateData.id;
+  delete safeUpdateData.created_by;
+  delete safeUpdateData.customer_id;
+  delete safeUpdateData.agent_id; // Agent tidak boleh ganti agent_id
+
+  return await supabase
+    .from(TABLE)
+    .update(safeUpdateData)
+    .eq("id", id)
+    .select("*")
+    .single();
+}
+
 module.exports = {
   createAssignment,
   getAssignments,
