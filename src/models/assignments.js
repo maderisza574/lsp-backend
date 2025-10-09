@@ -23,6 +23,7 @@ async function updateAssignment(id, updateData) {
   delete safeUpdateData.id;
   delete safeUpdateData.created_by;
   delete safeUpdateData.customer_id;
+  delete safeUpdateData.agent_id; // Agent tidak boleh ganti agent_id
 
   return await supabase
     .from(TABLE)
@@ -32,7 +33,7 @@ async function updateAssignment(id, updateData) {
     .single();
 }
 
-// LIST, DETAIL, DELETE (Sama seperti sebelumnya)
+// LIST, DETAIL, DELETE
 
 async function getAssignments(filters = {}) {
   let query = supabase
@@ -54,24 +55,6 @@ async function deleteAssignment(id) {
   return await supabase
     .from(TABLE)
     .delete()
-    .eq("id", id)
-    .select("*")
-    .single();
-}
-
-// UPDATE
-async function updateAssignment(id, updateData) {
-  const safeUpdateData = { ...updateData };
-  
-  // Fields yang tidak boleh diupdate
-  delete safeUpdateData.id;
-  delete safeUpdateData.created_by;
-  delete safeUpdateData.customer_id;
-  delete safeUpdateData.agent_id; // Agent tidak boleh ganti agent_id
-
-  return await supabase
-    .from(TABLE)
-    .update(safeUpdateData)
     .eq("id", id)
     .select("*")
     .single();

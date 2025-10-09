@@ -158,8 +158,8 @@ exports.submit = async (req, res) => {
     }
 
     // Validasi step
-    if (!step || step < 1 || step > 4) {
-      return response(res, 400, "Step must be between 1 and 4.");
+    if (!step || step < 1 || step > 6) {
+      return response(res, 400, "Step must be between 1 and 6.");
     }
 
     // Prepare update data
@@ -201,7 +201,126 @@ exports.submit = async (req, res) => {
   }
 };
 
-// --- LIST, DETAIL, REMOVE (Sama seperti sebelumnya) ---
+// --- STEP 5: UPDATE ASSIGNMENT CLAIM (agent only) ---
+exports.updateClaim = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assignment_claim } = req.body; // URL gambar assignment claim
+
+    // Validasi role
+    if (req.user.role !== "agent") {
+      return response(res, 403, "Only agent can update assignment claim.");
+    }
+
+    // Get assignment
+    const { data: assignment, error: fetchError } = await getAssignmentById(id);
+    if (fetchError || !assignment) {
+      return response(res, 404, "Assignment not found.");
+    }
+
+    // Validasi ownership
+    if (assignment.agent_id !== req.user.id) {
+      return response(res, 403, "You are not the assigned agent for this assignment.");
+    }
+
+    // Validasi step - harus step 5
+    if (assignment.step !== 5) {
+      return response(res, 400, "Can only update claim at step 5.");
+    }
+
+    // Validasi assignment_claim
+    if (!assignment_claim) {
+      return response(res, 400, "assignment_claim is required for step 5.");
+    }
+
+    const updateData = {
+      step: 5,
+      assignment_claim: assignment_claim,
+      status: "in_progress"
+    };
+
+    const { data: updatedAssignment, error: updateError } = await updateAssignment(id, updateData);
+    if (updateError) {
+      console.error('Update claim error:', updateError);
+      return response(res, 500, updateError.message);
+    }
+
+    return response(res, 200, "Assignment claim updated successfully", updatedAssignment);
+
+  } catch (err) {
+    console.error('Update claim error:', err);
+    return response(res, 500, err.message);
+  }
+};
+
+// --- STEP 6: UPDATE SURVEY (agent only) ---
+exports.updateSurvey = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      survey_petugas, 
+      survey_klaim, 
+      survey_rekomen, 
+      kritik_saran 
+    } = req.body;
+
+    // Validasi role
+    if (req.user.role !== "agent") {
+      return response(res, 403, "Only agent can update survey.");
+    }
+
+    // Get assignment
+    const { data: assignment, error: fetchError } = await getAssignmentById(id);
+    if (fetchError || !assignment) {
+      return response(res, 404, "Assignment not found.");
+    }
+
+    // Validasi ownership
+    if (assignment.agent_id !== req.user.id) {
+      return response(res, 403, "You are not the assigned agent for this assignment.");
+    }
+
+    // Validasi step - harus step 6
+    if (assignment.step !== 6) {
+      return response(res, 400, "Can only update survey at step 6.");
+    }
+
+    // Validasi rating (1-5)
+    if (survey_petugas && (survey_petugas < 1 || survey_petugas > 5)) {
+      return response(res, 400, "survey_petugas must be between 1 and 5.");
+    }
+    if (survey_klaim && (survey_klaim < 1 || survey_klaim > 5)) {
+      return response(res, 400, "survey_klaim must be between 1 and 5.");
+    }
+    if (survey_rekomen && (survey_rekomen < 1 || survey_rekomen > 5)) {
+      return response(res, 400, "survey_rekomen must be between 1 and 5.");
+    }
+
+    const updateData = {
+      step: 6,
+      status: "completed", // Status menjadi completed di step 6
+      survey_petugas: survey_petugas || null,
+      survey_klaim: survey_klaim || null,
+      survey_rekomen: survey_rekomen || null,
+      kritik_saran: kritik_saran || null,
+      completed_at: new Date()
+    };
+
+    const { data: updatedAssignment, error: updateError } = await updateAssignment(id, updateData);
+    if (updateError) {
+      console.error('Update survey error:', updateError);
+      return response(res, 500, updateError.message);
+    }
+
+    return response(res, 200, "Survey updated successfully", updatedAssignment);
+
+  } catch (err) {
+    console.error('Update survey error:', err);
+    return response(res, 500, err.message);
+  }
+};
+
+// --- LIST, DETAIL, REMOVE ---
 
 exports.list = async (req, res) => {
   try {

@@ -12,6 +12,10 @@ router.get("/:id", authMiddleware, assignmentsController.detail);
 router.patch("/:id/draft", authMiddleware, assignmentsController.updateDraft);
 router.post("/:id/submit", authMiddleware, assignmentsController.submit);
 
+// Step 5 & 6 routes
+router.patch("/:id/claim", authMiddleware, assignmentsController.updateClaim);
+router.patch("/:id/survey", authMiddleware, assignmentsController.updateSurvey);
+
 // Admin/Approver routes
 router.post("/:id/review", authMiddleware, assignmentsController.review);
 
