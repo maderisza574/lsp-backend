@@ -202,6 +202,7 @@ exports.submit = async (req, res) => {
 };
 
 // --- STEP 5: UPDATE ASSIGNMENT CLAIM (agent only) ---
+// --- STEP 5: UPDATE ASSIGNMENT CLAIM (agent only) ---
 exports.updateClaim = async (req, res) => {
   try {
     const { id } = req.params;
@@ -223,9 +224,9 @@ exports.updateClaim = async (req, res) => {
       return response(res, 403, "You are not the assigned agent for this assignment.");
     }
 
-    // Validasi step - harus step 5
-    if (assignment.step !== 5) {
-      return response(res, 400, "Can only update claim at step 5.");
+    // ✅ MODIFIED: Bisa update claim dari step 4 ke atas
+    if (assignment.step < 4) {
+      return response(res, 400, "Can only update claim after completing step 4.");
     }
 
     // Validasi assignment_claim
@@ -234,7 +235,7 @@ exports.updateClaim = async (req, res) => {
     }
 
     const updateData = {
-      step: 5,
+      step: 5, // Auto naikkan ke step 5
       assignment_claim: assignment_claim,
       status: "in_progress"
     };
@@ -253,6 +254,7 @@ exports.updateClaim = async (req, res) => {
   }
 };
 
+// --- STEP 6: UPDATE SURVEY (agent only) ---
 // --- STEP 6: UPDATE SURVEY (agent only) ---
 exports.updateSurvey = async (req, res) => {
   try {
@@ -280,9 +282,9 @@ exports.updateSurvey = async (req, res) => {
       return response(res, 403, "You are not the assigned agent for this assignment.");
     }
 
-    // Validasi step - harus step 6
-    if (assignment.step !== 6) {
-      return response(res, 400, "Can only update survey at step 6.");
+    // ✅ MODIFIED: Bisa update survey dari step 5 ke atas
+    if (assignment.step < 5) {
+      return response(res, 400, "Can only update survey after completing claim (step 5).");
     }
 
     // Validasi rating (1-5)
@@ -297,7 +299,7 @@ exports.updateSurvey = async (req, res) => {
     }
 
     const updateData = {
-      step: 6,
+      step: 6, // Auto naikkan ke step 6
       status: "completed", // Status menjadi completed di step 6
       survey_petugas: survey_petugas || null,
       survey_klaim: survey_klaim || null,
