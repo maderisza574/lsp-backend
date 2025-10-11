@@ -11,6 +11,7 @@ async function createApprover(user_id, judul, deskripsi, attachments) {
     judul,
     deskripsi,
     attachments,
+    status: 'pending',
     created_at: new Date(),
   };
 
@@ -27,6 +28,8 @@ async function getApprovers() {
     judul,
     deskripsi,
     attachments,
+    status,
+    approved_at,
     created_at,
     users(full_name, email)
   `);
@@ -45,6 +48,8 @@ async function getApproverById(id) {
       judul,
       deskripsi,
       attachments,
+      status,
+      approved_at,
       created_at,
       users(full_name, email)
     `)
@@ -70,10 +75,45 @@ async function deleteApprover(id) {
   return result;
 }
 
+/**
+ * Update approver status (approve/reject)
+ */
+async function updateApproverStatus(id, status, approved_by = null) {
+  const payload = {
+    status,
+    approved_at: status === 'approved' ? new Date() : null
+  };
+
+  const result = await supabase.from(TABLE).update(payload).eq("id", id).select().single();
+  return result;
+}
+
+/**
+ * Get approvers by user_id (for assigned approver)
+ */
+async function getApproversByUserId(user_id) {
+  const result = await supabase
+    .from(TABLE)
+    .select(`
+      id,
+      judul,
+      deskripsi,
+      attachments,
+      status,
+      approved_at,
+      created_at,
+      users(full_name, email)
+    `)
+    .eq("user_id", user_id);
+  return result;
+}
+
 module.exports = {
   createApprover,
   getApprovers,
   getApproverById,
   updateApprover,
   deleteApprover,
+  updateApproverStatus,
+  getApproversByUserId
 };
